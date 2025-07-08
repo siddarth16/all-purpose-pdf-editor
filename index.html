@@ -44,6 +44,7 @@
       height: 100vh;
       background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
       display: flex;
+      flex-direction: column;
       justify-content: center;
       align-items: center;
       z-index: 9999;
@@ -56,11 +57,24 @@
       border-top: 3px solid white;
       border-radius: 50%;
       animation: spin 1s linear infinite;
+      margin-bottom: 20px;
+    }
+    
+    .loading-text {
+      color: white;
+      font-size: 18px;
+      font-weight: 500;
+      text-align: center;
     }
     
     @keyframes spin {
       0% { transform: rotate(0deg); }
       100% { transform: rotate(360deg); }
+    }
+    
+    /* Hide loading screen when React is ready */
+    .react-loaded .loading {
+      display: none;
     }
   </style>
 </head>
@@ -68,8 +82,35 @@
   <div id="root">
     <div class="loading">
       <div class="spinner"></div>
+      <div class="loading-text">Loading PDF Toolkit...</div>
     </div>
   </div>
+  
   <script type="module" src="/src/main.jsx"></script>
+  
+  <!-- Fallback script to remove loading screen -->
+  <script>
+    // Remove loading screen after 10 seconds as fallback
+    setTimeout(() => {
+      console.log('Fallback: Removing loading screen after 10 seconds');
+      const loadingElement = document.querySelector('.loading');
+      if (loadingElement) {
+        loadingElement.style.display = 'none';
+        console.log('Loading screen removed by fallback');
+      }
+    }, 10000);
+    
+    // Add event listener for when React is ready
+    window.addEventListener('load', () => {
+      console.log('Window load event fired');
+      setTimeout(() => {
+        const loadingElement = document.querySelector('.loading');
+        if (loadingElement) {
+          loadingElement.style.display = 'none';
+          console.log('Loading screen removed by window load event');
+        }
+      }, 2000);
+    });
+  </script>
 </body>
 </html> 
