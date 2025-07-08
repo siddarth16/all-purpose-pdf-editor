@@ -9,20 +9,49 @@ import {
   FileText, 
   Home,
   Github,
-  Heart
+  ChevronDown
 } from 'lucide-react'
 import { useThemeStore } from '../store/themeStore'
 
 const Navbar = () => {
   const [isOpen, setIsOpen] = useState(false)
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false)
   const { theme, toggleTheme } = useThemeStore()
   const location = useLocation()
 
   const toggleMenu = () => setIsOpen(!isOpen)
+  const toggleDropdown = () => setIsDropdownOpen(!isDropdownOpen)
 
   const navItems = [
     { name: 'Home', path: '/', icon: Home },
-    { name: 'All Tools', path: '/#tools', icon: FileText },
+  ]
+
+  // Simple tools list for testing
+  const pdfTools = [
+    { name: 'Merge PDF', path: '/merge-pdf' },
+    { name: 'Split PDF', path: '/split-pdf' },
+    { name: 'Compress PDF', path: '/compress-pdf' },
+    { name: 'Edit PDF', path: '/edit-pdf' },
+    { name: 'PDF to Word', path: '/pdf-to-word' },
+    { name: 'Word to PDF', path: '/word-to-pdf' },
+    { name: 'PDF to Excel', path: '/pdf-to-excel' },
+    { name: 'Excel to PDF', path: '/excel-to-pdf' },
+    { name: 'PDF to PowerPoint', path: '/pdf-to-powerpoint' },
+    { name: 'PowerPoint to PDF', path: '/powerpoint-to-pdf' },
+    { name: 'PDF to JPG', path: '/pdf-to-jpg' },
+    { name: 'JPG to PDF', path: '/jpg-to-pdf' },
+    { name: 'PDF to PNG', path: '/pdf-to-png' },
+    { name: 'PNG to PDF', path: '/png-to-pdf' },
+    { name: 'Organize PDF', path: '/organize-pdf' },
+    { name: 'Protect PDF', path: '/protect-pdf' },
+    { name: 'Unlock PDF', path: '/unlock-pdf' },
+    { name: 'Sign PDF', path: '/sign-pdf' },
+    { name: 'Watermark PDF', path: '/watermark-pdf' },
+    { name: 'Page Numbers', path: '/page-numbers' },
+    { name: 'OCR PDF', path: '/ocr-pdf' },
+    { name: 'HTML to PDF', path: '/html-to-pdf' },
+    { name: 'PDF Reader', path: '/pdf-reader' },
+    { name: 'Repair PDF', path: '/repair-pdf' },
   ]
 
   return (
@@ -68,6 +97,35 @@ const Navbar = () => {
                   </Link>
                 )
               })}
+              
+              {/* Simple All Tools Dropdown */}
+              <div className="relative">
+                <button
+                  onClick={toggleDropdown}
+                  className="flex items-center space-x-2 px-3 py-2 rounded-lg hover:bg-white/10 text-white/80 hover:text-white transition-all duration-200"
+                >
+                  <FileText className="w-4 h-4" />
+                  <span>All Tools</span>
+                  <ChevronDown className={`w-4 h-4 transition-transform duration-200 ${isDropdownOpen ? 'rotate-180' : ''}`} />
+                </button>
+                
+                {isDropdownOpen && (
+                  <div className="absolute top-full left-0 mt-2 w-56 glass rounded-lg shadow-xl border border-white/10 z-50 max-h-96 overflow-y-auto">
+                    <div className="py-2">
+                      {pdfTools.map((tool) => (
+                        <Link
+                          key={tool.name}
+                          to={tool.path}
+                          className="block px-4 py-2 hover:bg-white/10 text-white/80 hover:text-white transition-colors duration-200 text-sm"
+                          onClick={() => setIsDropdownOpen(false)}
+                        >
+                          {tool.name}
+                        </Link>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
               
               {/* Theme Toggle */}
               <button
@@ -124,49 +182,69 @@ const Navbar = () => {
         </div>
 
         {/* Mobile Navigation */}
-        <motion.div
-          className={`md:hidden ${isOpen ? 'block' : 'hidden'}`}
-          initial={{ opacity: 0, height: 0 }}
-          animate={{ opacity: isOpen ? 1 : 0, height: isOpen ? 'auto' : 0 }}
-          transition={{ duration: 0.3 }}
-        >
-          <div className="px-4 pt-2 pb-4 space-y-2 glass border-t border-white/10">
-            {navItems.map((item) => {
-              const Icon = item.icon
-              const isActive = location.pathname === item.path
-              return (
-                <Link
-                  key={item.name}
-                  to={item.path}
-                  className={`flex items-center space-x-3 px-3 py-2 rounded-lg transition-all duration-200 ${
-                    isActive 
-                      ? 'bg-primary-500/20 text-primary-300' 
-                      : 'hover:bg-white/10 text-white/80 hover:text-white'
-                  }`}
-                  onClick={() => setIsOpen(false)}
-                >
-                  <Icon className="w-4 h-4" />
-                  <span>{item.name}</span>
-                </Link>
-              )
-            })}
-            
-            <a
-              href="https://github.com/yourusername/ultimate-pdf-toolkit"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center space-x-3 px-3 py-2 rounded-lg hover:bg-white/10 text-white/80 hover:text-white transition-colors duration-200"
-              onClick={() => setIsOpen(false)}
-            >
-              <Github className="w-4 h-4" />
-              <span>GitHub</span>
-            </a>
+        {isOpen && (
+          <div className="md:hidden">
+            <div className="px-4 pt-2 pb-4 space-y-2 glass border-t border-white/10">
+              {navItems.map((item) => {
+                const Icon = item.icon
+                const isActive = location.pathname === item.path
+                return (
+                  <Link
+                    key={item.name}
+                    to={item.path}
+                    className={`flex items-center space-x-3 px-3 py-2 rounded-lg transition-all duration-200 ${
+                      isActive 
+                        ? 'bg-primary-500/20 text-primary-300' 
+                        : 'hover:bg-white/10 text-white/80 hover:text-white'
+                    }`}
+                    onClick={() => setIsOpen(false)}
+                  >
+                    <Icon className="w-4 h-4" />
+                    <span>{item.name}</span>
+                  </Link>
+                )
+              })}
+              
+              {/* Mobile Tools List */}
+              <div className="border-t border-white/10 pt-2 mt-2">
+                <div className="text-white/60 text-sm font-medium px-3 py-2">All Tools</div>
+                {pdfTools.map((tool) => (
+                  <Link
+                    key={tool.name}
+                    to={tool.path}
+                    className="block px-3 py-2 rounded-lg hover:bg-white/10 text-white/80 hover:text-white transition-colors duration-200"
+                    onClick={() => setIsOpen(false)}
+                  >
+                    {tool.name}
+                  </Link>
+                ))}
+              </div>
+              
+              <a
+                href="https://github.com/yourusername/ultimate-pdf-toolkit"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center space-x-3 px-3 py-2 rounded-lg hover:bg-white/10 text-white/80 hover:text-white transition-colors duration-200"
+                onClick={() => setIsOpen(false)}
+              >
+                <Github className="w-4 h-4" />
+                <span>GitHub</span>
+              </a>
+            </div>
           </div>
-        </motion.div>
+        )}
       </motion.nav>
 
       {/* Spacer to prevent content from being hidden behind fixed navbar */}
       <div className="h-16"></div>
+      
+      {/* Dropdown backdrop */}
+      {isDropdownOpen && (
+        <div
+          className="fixed inset-0 z-40"
+          onClick={() => setIsDropdownOpen(false)}
+        />
+      )}
     </>
   )
 }
