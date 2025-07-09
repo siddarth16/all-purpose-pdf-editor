@@ -17,6 +17,7 @@ const Navbar = () => {
     { name: 'Protect PDF', path: '/protect-pdf' },
     { name: 'Watermark PDF', path: '/watermark-pdf' },
     { name: 'Page Numbers', path: '/page-numbers' },
+    { name: 'Headers & Footers', path: '/headers-footers' },
     { name: 'PDF to JPG', path: '/pdf-to-jpg' },
     { name: 'JPG to PDF', path: '/jpg-to-pdf' },
     { name: 'PDF to PNG', path: '/pdf-to-png' },

@@ -26,6 +26,7 @@ import PowerPointToPDF from './pages/PowerPointToPDF'
 import PDFToExcel from './pages/PDFToExcel'
 import EditPDF from './pages/EditPDF'
 import PageNumbers from './pages/PageNumbers'
+import HeadersFooters from './pages/HeadersFooters'
 
 function App() {
   const { initTheme } = useThemeStore()
@@ -61,6 +62,7 @@ function App() {
             <Route path="/pdf-to-excel" element={<PDFToExcel />} />
             <Route path="/edit-pdf" element={<EditPDF />} />
             <Route path="/page-numbers" element={<PageNumbers />} />
+            <Route path="/headers-footers" element={<HeadersFooters />} />
           </Routes>
         </main>
         <Footer />

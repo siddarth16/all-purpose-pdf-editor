@@ -1,4 +1,4 @@
-import { PDFDocument } from 'pdf-lib'
+import { PDFDocument, rgb } from 'pdf-lib'
 import { saveAs } from 'file-saver'
 import * as pdfjsLib from 'pdfjs-dist'
 import html2canvas from 'html2canvas'
@@ -1379,5 +1379,144 @@ export const convertPowerPointToPDF = async (file, options = {}) => {
   } catch (error) {
     console.error('Error converting PowerPoint to PDF:', error)
     throw new Error('Failed to convert PowerPoint file to PDF. Please check your file and try again.')
+  }
+}
+
+// Add headers and footers to PDF
+export const addHeadersFootersToPDF = async (file, options = {}) => {
+  try {
+    const {
+      headerText = '',
+      footerText = '',
+      headerPosition = 'center', // 'left', 'center', 'right'
+      footerPosition = 'center',
+      fontSize = 10,
+      fontColor = '#000000',
+      marginTop = 30,
+      marginBottom = 30,
+      marginLeft = 50,
+      marginRight = 50,
+      startPage = 1,
+      endPage = null,
+      showOnFirstPage = true,
+      dateFormat = '', // 'date', 'datetime', 'custom'
+      customText = '',
+      includePageNumbers = false,
+      pageNumberFormat = 'Page {n}' // {n} = page number, {total} = total pages
+    } = options
+
+    const arrayBuffer = await file.arrayBuffer()
+    const pdfDoc = await PDFDocument.load(arrayBuffer)
+    const pages = pdfDoc.getPages()
+    const totalPages = pages.length
+
+    // Calculate actual end page
+    const lastPage = endPage || totalPages
+
+    // Process each page
+    for (let i = 0; i < pages.length; i++) {
+      const pageNumber = i + 1
+      const page = pages[i]
+      
+      // Check if we should add headers/footers to this page
+      if (pageNumber < startPage || pageNumber > lastPage) continue
+      if (!showOnFirstPage && pageNumber === 1) continue
+
+      const { width, height } = page.getSize()
+
+      // Prepare header text
+      let finalHeaderText = headerText
+      if (dateFormat === 'date') {
+        finalHeaderText = `${headerText} ${new Date().toLocaleDateString()}`.trim()
+      } else if (dateFormat === 'datetime') {
+        finalHeaderText = `${headerText} ${new Date().toLocaleString()}`.trim()
+      } else if (customText) {
+        finalHeaderText = customText
+      }
+
+      if (includePageNumbers && finalHeaderText) {
+        const pageNumText = pageNumberFormat
+          .replace('{n}', pageNumber)
+          .replace('{total}', totalPages)
+        finalHeaderText = `${finalHeaderText} | ${pageNumText}`
+      }
+
+      // Prepare footer text
+      let finalFooterText = footerText
+      if (includePageNumbers && !finalHeaderText.includes('Page')) {
+        const pageNumText = pageNumberFormat
+          .replace('{n}', pageNumber)
+          .replace('{total}', totalPages)
+        finalFooterText = finalFooterText ? `${finalFooterText} | ${pageNumText}` : pageNumText
+      }
+
+      // Add header
+      if (finalHeaderText) {
+        const headerY = height - marginTop
+        let headerX = marginLeft
+
+        // Calculate X position based on alignment
+        if (headerPosition === 'center') {
+          const textWidth = finalHeaderText.length * (fontSize * 0.6) // Approximate text width
+          headerX = (width - textWidth) / 2
+        } else if (headerPosition === 'right') {
+          const textWidth = finalHeaderText.length * (fontSize * 0.6)
+          headerX = width - marginRight - textWidth
+        }
+
+        page.drawText(finalHeaderText, {
+          x: Math.max(marginLeft, headerX),
+          y: headerY,
+          size: fontSize,
+          color: rgb(
+            parseInt(fontColor.slice(1, 3), 16) / 255,
+            parseInt(fontColor.slice(3, 5), 16) / 255,
+            parseInt(fontColor.slice(5, 7), 16) / 255
+          )
+        })
+      }
+
+      // Add footer
+      if (finalFooterText) {
+        const footerY = marginBottom
+        let footerX = marginLeft
+
+        // Calculate X position based on alignment
+        if (footerPosition === 'center') {
+          const textWidth = finalFooterText.length * (fontSize * 0.6)
+          footerX = (width - textWidth) / 2
+        } else if (footerPosition === 'right') {
+          const textWidth = finalFooterText.length * (fontSize * 0.6)
+          footerX = width - marginRight - textWidth
+        }
+
+        page.drawText(finalFooterText, {
+          x: Math.max(marginLeft, footerX),
+          y: footerY,
+          size: fontSize,
+          color: rgb(
+            parseInt(fontColor.slice(1, 3), 16) / 255,
+            parseInt(fontColor.slice(3, 5), 16) / 255,
+            parseInt(fontColor.slice(5, 7), 16) / 255
+          )
+        })
+      }
+    }
+
+    // Save the modified PDF
+    const pdfBytes = await pdfDoc.save()
+    const blob = new Blob([pdfBytes], { type: 'application/pdf' })
+    const originalName = file.name.replace('.pdf', '')
+    saveAs(blob, `${originalName}-with-headers-footers.pdf`)
+
+    return {
+      success: true,
+      filename: `${originalName}-with-headers-footers.pdf`,
+      pagesProcessed: Math.min(lastPage, totalPages) - startPage + 1
+    }
+
+  } catch (error) {
+    console.error('Error adding headers and footers to PDF:', error)
+    throw new Error('Failed to add headers and footers to PDF. Please check your file and try again.')
   }
 }

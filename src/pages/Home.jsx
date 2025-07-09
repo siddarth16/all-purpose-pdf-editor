@@ -16,7 +16,8 @@ import {
   FileUp,
   Settings,
   Upload,
-  ArrowRight
+  ArrowRight,
+  Layout
 } from 'lucide-react'
 
 const tools = [
@@ -68,6 +69,13 @@ const tools = [
     icon: Hash,
     path: '/page-numbers',
     color: 'from-yellow-500 to-yellow-600'
+  },
+  {
+    name: 'Headers & Footers',
+    description: 'Add custom headers and footers to PDF',
+    icon: Layout,
+    path: '/headers-footers',
+    color: 'from-fuchsia-500 to-fuchsia-600'
   },
   {
     name: 'PDF to JPG',
@@ -183,6 +191,7 @@ const Home = () => {
           { name: 'Split PDF', path: '/split-pdf', description: 'Extract specific pages' },
           { name: 'Compress PDF', path: '/compress-pdf', description: 'Reduce file size' },
           { name: 'Edit PDF', path: '/edit-pdf', description: 'Add text and annotations' },
+          { name: 'Headers & Footers', path: '/headers-footers', description: 'Add custom headers and footers' },
           { name: 'Protect PDF', path: '/protect-pdf', description: 'Add password protection' }
         )
       } else if (file.type.startsWith('image/')) {
