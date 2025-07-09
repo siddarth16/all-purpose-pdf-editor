@@ -5,9 +5,8 @@ import html2canvas from 'html2canvas'
 import jsPDF from 'jspdf'
 import { createWorker } from 'tesseract.js'
 import JSZip from 'jszip'
-import mammoth from 'mammoth'
-import * as XLSX from 'xlsx'
-import html2canvas from 'html2canvas'
+  import mammoth from 'mammoth'
+  import * as XLSX from 'xlsx'
 
 // Set up PDF.js worker to use local worker file
 // This avoids CORS issues with external CDNs
