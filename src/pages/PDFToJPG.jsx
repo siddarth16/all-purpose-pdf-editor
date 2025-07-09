@@ -2,7 +2,7 @@ import React, { useState } from 'react'
 import { useDropzone } from 'react-dropzone'
 import { FileImage, Upload, FileText, Settings, Download } from 'lucide-react'
 import { toast } from 'react-hot-toast'
-import { convertPDFToImages, getPDFInfo } from '../utils/pdfUtils'
+import { convertPDFToImages, getPDFInfo, downloadImagesIndividually, downloadImagesAsZip } from '../utils/pdfUtils'
 
 const PDFToJPG = () => {
   const [file, setFile] = useState(null)
@@ -11,6 +11,7 @@ const PDFToJPG = () => {
   const [outputFormat, setOutputFormat] = useState('jpg')
   const [quality, setQuality] = useState(0.9)
   const [scale, setScale] = useState(2.0)
+  const [convertedImages, setConvertedImages] = useState(null)
 
   const onDrop = async (acceptedFiles) => {
     const pdfFile = acceptedFiles.find(file => file.type === 'application/pdf')
@@ -69,19 +70,43 @@ const PDFToJPG = () => {
     const loadingToast = toast.loading(`Converting PDF to ${outputFormat.toUpperCase()}...`)
 
     try {
-      const imageCount = await convertPDFToImages(file, outputFormat, quality)
+      const images = await convertPDFToImages(file, outputFormat, quality, scale)
       toast.dismiss(loadingToast)
-      toast.success(`Successfully converted ${imageCount} pages to ${outputFormat.toUpperCase()}! Downloads started.`)
+      toast.success(`Successfully converted ${images.length} pages to ${outputFormat.toUpperCase()}!`)
       
-      // Clear form after success
-      setFile(null)
-      setPdfInfo(null)
+      setConvertedImages(images)
     } catch (error) {
       toast.dismiss(loadingToast)
-      toast.error(error.message || 'Failed to convert PDF')
+      toast.error(error.message || 'Failed to convert PDF to images. Please check your file and try again.')
     } finally {
       setIsProcessing(false)
     }
+  }
+
+  const handleDownloadAll = () => {
+    if (convertedImages) {
+      downloadImagesIndividually(convertedImages)
+      toast.success('Download started for all images!')
+    }
+  }
+
+  const handleDownloadZip = async () => {
+    if (convertedImages) {
+      try {
+        const loadingToast = toast.loading('Creating zip file...')
+        await downloadImagesAsZip(convertedImages, `${file.name.replace('.pdf', '')}-images.zip`)
+        toast.dismiss(loadingToast)
+        toast.success('Zip file download started!')
+      } catch (error) {
+        toast.error('Failed to create zip file')
+      }
+    }
+  }
+
+  const handleStartOver = () => {
+    setFile(null)
+    setPdfInfo(null)
+    setConvertedImages(null)
   }
 
   return (
@@ -92,10 +117,10 @@ const PDFToJPG = () => {
           <div className="w-16 h-16 bg-gradient-to-br from-orange-500 to-orange-600 rounded-full flex items-center justify-center mx-auto mb-4">
             <FileImage className="w-8 h-8 text-white" />
           </div>
-          <h1 className="text-3xl sm:text-4xl font-bold text-white mb-4">
+          <h1 className="text-3xl sm:text-4xl font-bold text-primary mb-4">
             PDF to JPG
           </h1>
-          <p className="text-lg text-white/80">
+          <p className="text-lg text-secondary">
             Convert PDF pages to high-quality JPG or PNG images
           </p>
         </div>
@@ -240,24 +265,75 @@ const PDFToJPG = () => {
             </div>
 
             {/* Action Buttons */}
-            <div className="mt-6 flex justify-center space-x-4">
-              <button
-                onClick={() => {
-                  setFile(null)
-                  setPdfInfo(null)
-                }}
-                className="btn-secondary"
-              >
-                Remove File
-              </button>
-              <button
-                onClick={handleConvertPDF}
-                disabled={isProcessing}
-                className="btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {isProcessing ? 'Converting...' : `Convert to ${outputFormat.toUpperCase()}`}
-              </button>
-            </div>
+            {!convertedImages ? (
+              <div className="mt-6 flex justify-center space-x-4">
+                <button
+                  onClick={() => {
+                    setFile(null)
+                    setPdfInfo(null)
+                  }}
+                  className="btn-secondary"
+                >
+                  Remove File
+                </button>
+                <button
+                  onClick={handleConvertPDF}
+                  disabled={isProcessing}
+                  className="btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {isProcessing ? 'Converting...' : `Convert to ${outputFormat.toUpperCase()}`}
+                </button>
+              </div>
+            ) : (
+              <div className="mt-6">
+                {/* Success Message */}
+                <div className="mb-6 p-4 bg-green-500/10 border border-green-500/20 rounded-lg">
+                  <div className="flex items-center space-x-3">
+                    <Download className="w-5 h-5 text-green-400" />
+                    <div>
+                      <p className="text-primary font-medium">Conversion Complete!</p>
+                      <p className="text-secondary text-sm">
+                        {convertedImages.length} {convertedImages.length === 1 ? 'page' : 'pages'} converted to {outputFormat.toUpperCase()}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Download Options */}
+                <div className="space-y-4">
+                  <div className="text-center">
+                    <p className="text-primary font-medium mb-4">Choose download option:</p>
+                    <div className="flex flex-col sm:flex-row gap-3 justify-center">
+                      <button
+                        onClick={handleDownloadAll}
+                        className="btn-primary flex items-center justify-center space-x-2"
+                      >
+                        <Download className="w-4 h-4" />
+                        <span>Download All Files</span>
+                      </button>
+                      {convertedImages.length > 1 && (
+                        <button
+                          onClick={handleDownloadZip}
+                          className="btn-secondary flex items-center justify-center space-x-2"
+                        >
+                          <Download className="w-4 h-4" />
+                          <span>Download as ZIP</span>
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="text-center pt-4 border-t border-white/20">
+                    <button
+                      onClick={handleStartOver}
+                      className="text-secondary hover:text-primary transition-colors duration-200"
+                    >
+                      Convert Another PDF
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         )}
       </div>

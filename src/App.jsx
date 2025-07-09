@@ -1,6 +1,7 @@
-import React from 'react'
+import React, { useEffect } from 'react'
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom'
 import { Toaster } from 'react-hot-toast'
+import { useThemeStore } from './store/theme'
 import Navbar from './components/Navbar'
 import Footer from './components/Footer'
 import Home from './pages/Home'
@@ -24,8 +25,15 @@ import ExcelToPDF from './pages/ExcelToPDF'
 import PowerPointToPDF from './pages/PowerPointToPDF'
 import PDFToExcel from './pages/PDFToExcel'
 import EditPDF from './pages/EditPDF'
+import PageNumbers from './pages/PageNumbers'
 
 function App() {
+  const { initTheme } = useThemeStore()
+
+  useEffect(() => {
+    initTheme()
+  }, [initTheme])
+
   return (
     <Router>
       <div className="min-h-screen flex flex-col">
@@ -48,11 +56,11 @@ function App() {
             <Route path="/png-to-pdf" element={<PNGToPDF />} />
             <Route path="/pdf-to-png" element={<PDFToPNG />} />
             <Route path="/word-to-pdf" element={<WordToPDF />} />
-            <Route path="/pdf-to-word" element={<PDFToWord />} />
             <Route path="/excel-to-pdf" element={<ExcelToPDF />} />
             <Route path="/powerpoint-to-pdf" element={<PowerPointToPDF />} />
             <Route path="/pdf-to-excel" element={<PDFToExcel />} />
             <Route path="/edit-pdf" element={<EditPDF />} />
+            <Route path="/page-numbers" element={<PageNumbers />} />
           </Routes>
         </main>
         <Footer />

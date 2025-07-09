@@ -1,7 +1,8 @@
 import React, { useState } from 'react'
 import { useDropzone } from 'react-dropzone'
-import { FileText, Upload, AlertCircle, Settings, Info } from 'lucide-react'
+import { FileText, Upload, AlertCircle, Settings, Info, CheckCircle } from 'lucide-react'
 import { toast } from 'react-hot-toast'
+import { convertWordToPDF } from '../utils/pdfUtils'
 
 const WordToPDF = () => {
   const [file, setFile] = useState(null)
@@ -27,7 +28,7 @@ const WordToPDF = () => {
     }
 
     setFile(wordFile)
-    toast.info('Word document selected. Note: Full conversion requires server-side processing.')
+    toast.success('Word document selected and ready for conversion!')
   }
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
@@ -54,12 +55,24 @@ const WordToPDF = () => {
     }
 
     setIsProcessing(true)
+    const loadingToast = toast.loading('Converting Word document to PDF...')
     
-    // Simulate processing time
-    setTimeout(() => {
+    try {
+      const result = await convertWordToPDF(file, conversionSettings)
+      
+      toast.dismiss(loadingToast)
+      toast.success(`Successfully converted ${file.name} to PDF!`)
+      
+      if (result.warnings && result.warnings.length > 0) {
+        toast.info('Conversion completed with some formatting warnings. Check console for details.')
+      }
+    } catch (error) {
+      toast.dismiss(loadingToast)
+      toast.error(error.message || 'Failed to convert Word document to PDF')
+      console.error('Word conversion error:', error)
+    } finally {
       setIsProcessing(false)
-      toast.error('Word to PDF conversion requires server-side processing. This feature will be available in the server version.')
-    }, 2000)
+    }
   }
 
   return (
@@ -78,19 +91,18 @@ const WordToPDF = () => {
           </p>
         </div>
 
-        {/* Important Notice */}
-        <div className="mb-8 p-6 bg-amber-500/10 border border-amber-500/20 rounded-2xl">
+        {/* Feature Info */}
+        <div className="mb-8 p-6 bg-blue-500/10 border border-blue-500/20 rounded-2xl">
           <div className="flex items-start space-x-4">
-            <AlertCircle className="w-6 h-6 text-amber-400 mt-1 flex-shrink-0" />
+            <CheckCircle className="w-6 h-6 text-blue-400 mt-1 flex-shrink-0" />
             <div>
-              <h3 className="text-amber-400 font-semibold mb-2">Client-Side Limitation</h3>
+              <h3 className="text-blue-400 font-semibold mb-2">Word to PDF Conversion</h3>
               <p className="text-white/80 text-sm leading-relaxed mb-3">
-                Converting Word documents to PDF requires complex document processing that cannot be fully 
-                implemented in a web browser due to security and technical limitations. For complete Word 
-                to PDF conversion with perfect formatting preservation, server-side processing is required.
+                This tool converts Word documents (.docx, .doc) to PDF format using client-side processing. 
+                Text content and basic formatting are preserved, though complex layouts may need adjustment.
               </p>
               <p className="text-white/60 text-sm">
-                This interface demonstrates the planned feature that will be available in the server version.
+                Best results with documents containing primarily text, headings, and simple formatting.
               </p>
             </div>
           </div>

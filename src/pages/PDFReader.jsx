@@ -2,10 +2,11 @@ import React, { useState, useEffect, useRef } from 'react'
 import { useDropzone } from 'react-dropzone'
 import { BookOpen, Upload, ZoomIn, ZoomOut, RotateCw, ChevronLeft, ChevronRight, Search, Download } from 'lucide-react'
 import { toast } from 'react-hot-toast'
+import { loadPDFDocument } from '../utils/pdfUtils'
 import * as pdfjsLib from 'pdfjs-dist'
 
-// Set up PDF.js worker
-pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js`
+// Set up PDF.js worker to use local worker file
+pdfjsLib.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.js'
 
 const PDFReader = () => {
   const [file, setFile] = useState(null)
@@ -33,7 +34,7 @@ const PDFReader = () => {
     
     try {
       const arrayBuffer = await pdfFile.arrayBuffer()
-      const pdf = await pdfjsLib.getDocument(arrayBuffer).promise
+      const pdf = await loadPDFDocument(arrayBuffer)
       setPdfDoc(pdf)
       setTotalPages(pdf.numPages)
       setCurrentPage(1)

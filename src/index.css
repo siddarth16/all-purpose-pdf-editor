@@ -6,15 +6,39 @@
   body {
     @apply font-sans antialiased;
   }
+  
+  html.dark body {
+    @apply bg-gradient-to-br from-gray-900 via-purple-900 to-blue-900;
+  }
+  
+  html.light body {
+    @apply bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50;
+  }
 }
 
 @layer components {
   .glass {
-    @apply bg-white/10 backdrop-blur-md border border-white/20 shadow-xl;
+    @apply backdrop-blur-md border shadow-xl;
+  }
+  
+  html.dark .glass {
+    @apply bg-white/10 border-white/20;
+  }
+  
+  html.light .glass {
+    @apply bg-white/70 border-gray-200;
   }
   
   .glass-dark {
-    @apply bg-black/20 backdrop-blur-md border border-white/10 shadow-2xl;
+    @apply backdrop-blur-md border shadow-2xl;
+  }
+  
+  html.dark .glass-dark {
+    @apply bg-black/20 border-white/10;
+  }
+  
+  html.light .glass-dark {
+    @apply bg-white/80 border-gray-300;
   }
   
   .btn-primary {
@@ -22,11 +46,52 @@
   }
   
   .btn-secondary {
-    @apply glass text-white font-semibold px-6 py-3 rounded-xl transition-all duration-300 hover:bg-white/20 hover:scale-105;
+    @apply glass font-semibold px-6 py-3 rounded-xl transition-all duration-300 hover:scale-105;
+  }
+  
+  html.dark .btn-secondary {
+    @apply text-white hover:bg-white/20;
+  }
+  
+  html.light .btn-secondary {
+    @apply text-gray-800 hover:bg-gray-100;
   }
   
   .tool-card {
-    @apply glass rounded-2xl p-6 hover:bg-white/15 transition-all duration-300 hover:scale-105 hover:shadow-2xl cursor-pointer;
+    @apply glass rounded-2xl p-6 transition-all duration-300 hover:scale-105 hover:shadow-2xl cursor-pointer;
+  }
+  
+  html.dark .tool-card {
+    @apply hover:bg-white/15;
+  }
+  
+  html.light .tool-card {
+    @apply hover:bg-white/90;
+  }
+  
+  /* Text colors */
+  html.dark .text-primary {
+    @apply text-white;
+  }
+  
+  html.light .text-primary {
+    @apply text-gray-900;
+  }
+  
+  html.dark .text-secondary {
+    @apply text-white/80;
+  }
+  
+  html.light .text-secondary {
+    @apply text-gray-700;
+  }
+  
+  html.dark .text-muted {
+    @apply text-white/60;
+  }
+  
+  html.light .text-muted {
+    @apply text-gray-500;
   }
 }
 
@@ -39,10 +104,18 @@
   @apply bg-transparent;
 }
 
-::-webkit-scrollbar-thumb {
+html.dark ::-webkit-scrollbar-thumb {
   @apply bg-white/20 rounded-full;
 }
 
-::-webkit-scrollbar-thumb:hover {
+html.light ::-webkit-scrollbar-thumb {
+  @apply bg-gray-400/50 rounded-full;
+}
+
+html.dark ::-webkit-scrollbar-thumb:hover {
   @apply bg-white/30;
+}
+
+html.light ::-webkit-scrollbar-thumb:hover {
+  @apply bg-gray-400/70;
 } 

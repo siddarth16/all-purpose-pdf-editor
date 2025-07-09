@@ -1,7 +1,8 @@
 import React, { useState } from 'react'
 import { useDropzone } from 'react-dropzone'
-import { Presentation, Upload, AlertCircle, Settings, Info } from 'lucide-react'
+import { Presentation, Upload, AlertCircle, Settings, Info, CheckCircle } from 'lucide-react'
 import { toast } from 'react-hot-toast'
+import { convertPowerPointToPDF } from '../utils/pdfUtils'
 
 const PowerPointToPDF = () => {
   const [file, setFile] = useState(null)
@@ -28,7 +29,7 @@ const PowerPointToPDF = () => {
     }
 
     setFile(pptFile)
-    toast.info('PowerPoint file selected. Note: Full conversion requires server-side processing.')
+    toast.info('PowerPoint file selected. Note: Basic conversion available - full slide extraction requires server-side processing.')
   }
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
@@ -55,11 +56,24 @@ const PowerPointToPDF = () => {
     }
 
     setIsProcessing(true)
+    const loadingToast = toast.loading('Converting PowerPoint to PDF...')
     
-    setTimeout(() => {
+    try {
+      const result = await convertPowerPointToPDF(file, conversionSettings)
+      
+      toast.dismiss(loadingToast)
+      toast.success(`Successfully created PDF from ${file.name}!`)
+      
+      if (result.note) {
+        toast.info(result.note)
+      }
+    } catch (error) {
+      toast.dismiss(loadingToast)
+      toast.error(error.message || 'Failed to convert PowerPoint to PDF')
+      console.error('PowerPoint conversion error:', error)
+    } finally {
       setIsProcessing(false)
-      toast.error('PowerPoint to PDF conversion requires server-side processing with presentation libraries. This feature will be available in the server version.')
-    }, 2000)
+    }
   }
 
   return (
@@ -78,19 +92,18 @@ const PowerPointToPDF = () => {
           </p>
         </div>
 
-        {/* Important Notice */}
-        <div className="mb-8 p-6 bg-amber-500/10 border border-amber-500/20 rounded-2xl">
+        {/* Feature Info */}
+        <div className="mb-8 p-6 bg-orange-500/10 border border-orange-500/20 rounded-2xl">
           <div className="flex items-start space-x-4">
-            <AlertCircle className="w-6 h-6 text-amber-400 mt-1 flex-shrink-0" />
+            <CheckCircle className="w-6 h-6 text-orange-400 mt-1 flex-shrink-0" />
             <div>
-              <h3 className="text-amber-400 font-semibold mb-2">Server-Side Processing Required</h3>
+              <h3 className="text-orange-400 font-semibold mb-2">PowerPoint to PDF Conversion</h3>
               <p className="text-white/80 text-sm leading-relaxed mb-3">
-                Converting PowerPoint presentations to PDF requires specialized libraries that can handle 
-                complex slide layouts, animations, embedded media, and presentation-specific formatting. 
-                This level of processing cannot be reliably performed in a web browser.
+                This tool creates a basic PDF from PowerPoint files (.ppt, .pptx) with file information.
+                Full slide extraction and formatting preservation requires server-side processing.
               </p>
               <p className="text-white/60 text-sm">
-                This interface demonstrates the planned feature for server-side implementation.
+                Basic conversion available now - comprehensive slide conversion planned for server version.
               </p>
             </div>
           </div>

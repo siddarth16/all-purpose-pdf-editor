@@ -6,8 +6,11 @@ import {
   Download, Settings, Layers, Trash2
 } from 'lucide-react'
 import { toast } from 'react-hot-toast'
-import { getPDFInfo } from '../utils/pdfUtils'
+import { getPDFInfo, loadPDFDocument } from '../utils/pdfUtils'
 import * as pdfjsLib from 'pdfjs-dist'
+
+// Configure PDF.js worker to use local worker file
+pdfjsLib.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.js'
 
 const EditPDF = () => {
   const [file, setFile] = useState(null)
@@ -57,7 +60,7 @@ const EditPDF = () => {
       
       // Load PDF document
       const arrayBuffer = await pdfFile.arrayBuffer()
-      const pdf = await pdfjsLib.getDocument(arrayBuffer).promise
+      const pdf = await loadPDFDocument(arrayBuffer)
       setPdfDocument(pdf)
       setCurrentPage(1)
       
@@ -276,10 +279,10 @@ const EditPDF = () => {
             <div className="w-16 h-16 bg-gradient-to-br from-purple-500 to-purple-600 rounded-full flex items-center justify-center mx-auto mb-4">
               <Edit className="w-8 h-8 text-white" />
             </div>
-            <h1 className="text-3xl sm:text-4xl font-bold text-white mb-4">
+            <h1 className="text-3xl sm:text-4xl font-bold text-primary mb-4">
               Edit PDF
             </h1>
-            <p className="text-lg text-white/80">
+            <p className="text-lg text-secondary">
               Add text, shapes, and annotations to your PDF documents
             </p>
           </div>
@@ -295,11 +298,11 @@ const EditPDF = () => {
           >
             <input {...getInputProps()} />
             <div className="text-center">
-              <Upload className="w-12 h-12 text-white/60 mx-auto mb-4" />
-              <p className="text-white text-lg mb-2">
+              <Upload className="w-12 h-12 text-secondary mx-auto mb-4" />
+              <p className="text-primary text-lg mb-2">
                 {isDragActive ? 'Drop PDF file here' : 'Drag & drop PDF file here'}
               </p>
-              <p className="text-white/60">
+              <p className="text-muted">
                 or click to select file
               </p>
             </div>
@@ -319,8 +322,8 @@ const EditPDF = () => {
               <Edit className="w-6 h-6 text-white" />
             </div>
             <div>
-              <h1 className="text-2xl font-bold text-white">PDF Editor</h1>
-              <p className="text-white/60 text-sm">{file.name}</p>
+              <h1 className="text-2xl font-bold text-primary">PDF Editor</h1>
+              <p className="text-muted text-sm">{file.name}</p>
             </div>
           </div>
         </div>
@@ -508,23 +511,26 @@ const EditPDF = () => {
               </div>
 
               {/* Canvas Container */}
-              <div className="relative border border-white/20 rounded-lg overflow-hidden" style={{ maxHeight: '70vh' }}>
-                <canvas
-                  ref={canvasRef}
-                  className="absolute inset-0 z-0"
-                />
-                <div
-                  ref={overlayRef}
-                  className="absolute inset-0 z-10 cursor-crosshair"
-                  onMouseDown={handleMouseDown}
-                  onMouseMove={handleMouseMove}
-                  onMouseUp={handleMouseUp}
-                  style={{
-                    width: canvasRef.current?.width || 0,
-                    height: canvasRef.current?.height || 0
-                  }}
-                >
-                  {elements.map(renderElement)}
+              <div className="relative border border-white/20 rounded-lg overflow-auto bg-gray-100" style={{ maxHeight: '70vh' }}>
+                <div className="relative">
+                  <canvas
+                    ref={canvasRef}
+                    className="block mx-auto"
+                    style={{ maxWidth: '100%', height: 'auto' }}
+                  />
+                  <div
+                    ref={overlayRef}
+                    className="absolute top-0 left-1/2 transform -translate-x-1/2 cursor-crosshair"
+                    onMouseDown={handleMouseDown}
+                    onMouseMove={handleMouseMove}
+                    onMouseUp={handleMouseUp}
+                    style={{
+                      width: canvasRef.current?.width || '100%',
+                      height: canvasRef.current?.height || '100%'
+                    }}
+                  >
+                    {elements.map(renderElement)}
+                  </div>
                 </div>
               </div>
             </div>

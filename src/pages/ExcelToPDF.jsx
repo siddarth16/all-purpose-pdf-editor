@@ -1,7 +1,8 @@
 import React, { useState } from 'react'
 import { useDropzone } from 'react-dropzone'
-import { Table, Upload, AlertCircle, Settings, Info } from 'lucide-react'
+import { Table, Upload, AlertCircle, Settings, Info, CheckCircle } from 'lucide-react'
 import { toast } from 'react-hot-toast'
+import { convertExcelToPDF } from '../utils/pdfUtils'
 
 const ExcelToPDF = () => {
   const [file, setFile] = useState(null)
@@ -29,7 +30,7 @@ const ExcelToPDF = () => {
     }
 
     setFile(excelFile)
-    toast.info('Excel file selected. Note: Full conversion requires server-side processing.')
+    toast.success('Excel file selected and ready for conversion!')
   }
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
@@ -56,11 +57,24 @@ const ExcelToPDF = () => {
     }
 
     setIsProcessing(true)
+    const loadingToast = toast.loading('Converting Excel file to PDF...')
     
-    setTimeout(() => {
+    try {
+      const result = await convertExcelToPDF(file, conversionSettings)
+      
+      toast.dismiss(loadingToast)
+      toast.success(`Successfully converted ${file.name} to PDF!`)
+      
+      if (result.sheetsProcessed) {
+        toast.info(`Converted ${result.sheetsProcessed} worksheet${result.sheetsProcessed === 1 ? '' : 's'} to PDF`)
+      }
+    } catch (error) {
+      toast.dismiss(loadingToast)
+      toast.error(error.message || 'Failed to convert Excel file to PDF')
+      console.error('Excel conversion error:', error)
+    } finally {
       setIsProcessing(false)
-      toast.error('Excel to PDF conversion requires server-side processing with specialized spreadsheet libraries. This feature will be available in the server version.')
-    }, 2000)
+    }
   }
 
   return (
@@ -79,19 +93,18 @@ const ExcelToPDF = () => {
           </p>
         </div>
 
-        {/* Important Notice */}
-        <div className="mb-8 p-6 bg-amber-500/10 border border-amber-500/20 rounded-2xl">
+        {/* Feature Info */}
+        <div className="mb-8 p-6 bg-green-500/10 border border-green-500/20 rounded-2xl">
           <div className="flex items-start space-x-4">
-            <AlertCircle className="w-6 h-6 text-amber-400 mt-1 flex-shrink-0" />
+            <CheckCircle className="w-6 h-6 text-green-400 mt-1 flex-shrink-0" />
             <div>
-              <h3 className="text-amber-400 font-semibold mb-2">Server-Side Processing Required</h3>
+              <h3 className="text-green-400 font-semibold mb-2">Excel to PDF Conversion</h3>
               <p className="text-white/80 text-sm leading-relaxed mb-3">
-                Converting Excel files to PDF requires specialized spreadsheet processing libraries that can 
-                handle complex formulas, charts, formatting, and multiple worksheets. This level of processing 
-                cannot be reliably performed in a web browser.
+                This tool converts Excel spreadsheets (.xls, .xlsx) to PDF format using client-side processing.
+                Data from all worksheets is extracted and formatted into a table-based PDF layout.
               </p>
               <p className="text-white/60 text-sm">
-                This interface demonstrates the planned feature for server-side implementation.
+                Best results with data-heavy spreadsheets. Complex formulas and charts may not display.
               </p>
             </div>
           </div>

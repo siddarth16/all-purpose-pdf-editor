@@ -4,9 +4,55 @@ import * as pdfjsLib from 'pdfjs-dist'
 import html2canvas from 'html2canvas'
 import jsPDF from 'jspdf'
 import { createWorker } from 'tesseract.js'
+import JSZip from 'jszip'
+import mammoth from 'mammoth'
+import * as XLSX from 'xlsx'
+import html2canvas from 'html2canvas'
 
-// Set up PDF.js worker
-pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js`
+// Set up PDF.js worker to use local worker file
+// This avoids CORS issues with external CDNs
+pdfjsLib.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.js'
+
+// Additional configuration
+pdfjsLib.GlobalWorkerOptions.workerPort = null
+
+// Helper function to load PDF document using local worker
+export const loadPDFDocument = async (arrayBuffer) => {
+  try {
+    return await pdfjsLib.getDocument(arrayBuffer).promise
+  } catch (error) {
+    console.error('PDF loading error:', error)
+    throw new Error('Failed to load PDF file. The file may be corrupted or password-protected.')
+  }
+}
+
+// Helper function to download images individually
+export const downloadImagesIndividually = (images) => {
+  images.forEach(image => {
+    saveAs(image.blob, image.filename)
+  })
+}
+
+// Helper function to download images as zip
+export const downloadImagesAsZip = async (images, filename = 'converted-images.zip') => {
+  try {
+    const zip = new JSZip()
+    
+    // Add each image to the zip
+    images.forEach(image => {
+      zip.file(image.filename, image.blob)
+    })
+    
+    // Generate zip file
+    const zipBlob = await zip.generateAsync({ type: 'blob' })
+    saveAs(zipBlob, filename)
+    
+    return true
+  } catch (error) {
+    console.error('Error creating zip file:', error)
+    throw new Error('Failed to create zip file.')
+  }
+}
 
 // Merge multiple PDF files into one
 export const mergePDFs = async (files) => {
@@ -126,7 +172,7 @@ export const extractTextFromPDFWithOCR = async (file, options = {}) => {
     } = options
 
     const arrayBuffer = await file.arrayBuffer()
-    const pdf = await pdfjsLib.getDocument(arrayBuffer).promise
+    const pdf = await loadPDFDocument(arrayBuffer)
     
     // Initialize Tesseract worker
     const worker = await createWorker(language)
@@ -213,7 +259,7 @@ export const extractTextFromPDFWithOCR = async (file, options = {}) => {
 export const extractTextFromPDF = async (file) => {
   try {
     const arrayBuffer = await file.arrayBuffer()
-    const pdf = await pdfjsLib.getDocument(arrayBuffer).promise
+    const pdf = await loadPDFDocument(arrayBuffer)
     
     let allText = ''
     
@@ -316,49 +362,68 @@ export const createPDFFromImages = async (imageFiles) => {
 }
 
 // Convert PDF pages to images
-export const convertPDFToImages = async (file, format = 'png', quality = 1.0) => {
+export const convertPDFToImages = async (file, format = 'png', quality = 1.0, scale = 2.0) => {
   try {
     const arrayBuffer = await file.arrayBuffer()
-    const pdf = await pdfjsLib.getDocument(arrayBuffer).promise
+    
+    // Enhanced error handling for PDF document loading
+    let pdf
+    try {
+      pdf = await loadPDFDocument(arrayBuffer)
+    } catch (loadError) {
+      console.error('PDF loading error:', loadError)
+      throw new Error('Failed to load PDF file. The file may be corrupted or password-protected.')
+    }
     
     const images = []
     
     for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
-      const page = await pdf.getPage(pageNum)
-      const viewport = page.getViewport({ scale: 2.0 })
-      
-      const canvas = document.createElement('canvas')
-      const context = canvas.getContext('2d')
-      canvas.height = viewport.height
-      canvas.width = viewport.width
-      
-      const renderContext = {
-        canvasContext: context,
-        viewport: viewport
+      try {
+        const page = await pdf.getPage(pageNum)
+        const viewport = page.getViewport({ scale: scale })
+        
+        const canvas = document.createElement('canvas')
+        const context = canvas.getContext('2d')
+        canvas.height = viewport.height
+        canvas.width = viewport.width
+        
+        const renderContext = {
+          canvasContext: context,
+          viewport: viewport
+        }
+        
+        await page.render(renderContext).promise
+        
+        // Convert to blob
+        const mimeType = format === 'jpg' ? 'image/jpeg' : `image/${format}`
+        const blob = await new Promise((resolve, reject) => {
+          canvas.toBlob((blob) => {
+            if (blob) {
+              resolve(blob)
+            } else {
+              reject(new Error('Failed to convert canvas to blob'))
+            }
+          }, mimeType, quality)
+        })
+        
+        images.push({
+          blob,
+          filename: `page-${pageNum}.${format}`,
+          pageNumber: pageNum
+        })
+      } catch (pageError) {
+        console.error(`Error processing page ${pageNum}:`, pageError)
+        throw new Error(`Failed to process page ${pageNum}. Please try again.`)
       }
-      
-      await page.render(renderContext).promise
-      
-      // Convert to blob
-      const blob = await new Promise(resolve => {
-        canvas.toBlob(resolve, `image/${format}`, quality)
-      })
-      
-      images.push({
-        blob,
-        filename: `page-${pageNum}.${format}`
-      })
     }
     
-    // Download all images
-    images.forEach(image => {
-      saveAs(image.blob, image.filename)
-    })
-    
-    return images.length
+    return images
   } catch (error) {
     console.error('Error converting PDF to images:', error)
-    throw new Error('Failed to convert PDF to images. Please check your file and try again.')
+    if (error.message.includes('Setting up fake worker failed')) {
+      throw new Error('PDF processing failed due to network restrictions. Please try again or use a different network.')
+    }
+    throw new Error(error.message || 'Failed to convert PDF to images. Please check your file and try again.')
   }
 }
 
@@ -598,6 +663,9 @@ export const addPageNumbersToPDF = async (file, options = {}) => {
         .replace('{n}', pageNumber.toString())
         .replace('{total}', totalPages.toString())
       
+      // Estimate text width (rough calculation: fontSize * 0.6 * text length)
+      const textWidth = fontSize * 0.6 * pageText.length
+      
       let x, y
       
       // Calculate position
@@ -607,11 +675,11 @@ export const addPageNumbersToPDF = async (file, options = {}) => {
           y = height - margin
           break
         case 'top-center':
-          x = width / 2
+          x = (width - textWidth) / 2
           y = height - margin
           break
         case 'top-right':
-          x = width - margin
+          x = width - margin - textWidth
           y = height - margin
           break
         case 'bottom-left':
@@ -619,19 +687,19 @@ export const addPageNumbersToPDF = async (file, options = {}) => {
           y = margin
           break
         case 'bottom-center':
-          x = width / 2
+          x = (width - textWidth) / 2
           y = margin
           break
         case 'bottom-right':
         default:
-          x = width - margin
+          x = width - margin - textWidth
           y = margin
           break
       }
 
       // Add page number
       page.drawText(pageText, {
-        x: x,
+        x: Math.max(margin, x), // Ensure x is not less than margin
         y: y,
         size: fontSize,
         color: {
@@ -697,7 +765,7 @@ export const organizePDF = async (file, pageOperations) => {
 export const getPDFPageThumbnails = async (file, scale = 0.5) => {
   try {
     const arrayBuffer = await file.arrayBuffer()
-    const pdf = await pdfjsLib.getDocument(arrayBuffer).promise
+    const pdf = await loadPDFDocument(arrayBuffer)
     
     const thumbnails = []
     
@@ -897,7 +965,7 @@ export const convertPDFToPNG = async (file, options = {}) => {
     } = options
 
     const arrayBuffer = await file.arrayBuffer()
-    const pdf = await pdfjsLib.getDocument(arrayBuffer).promise
+    const pdf = await loadPDFDocument(arrayBuffer)
     
     const images = []
     
@@ -962,7 +1030,7 @@ export const convertPDFToMultipleFormats = async (file, formats = ['png'], optio
     } = options
 
     const arrayBuffer = await file.arrayBuffer()
-    const pdf = await pdfjsLib.getDocument(arrayBuffer).promise
+    const pdf = await loadPDFDocument(arrayBuffer)
     
     const results = []
     
@@ -1022,4 +1090,295 @@ export const convertPDFToMultipleFormats = async (file, formats = ['png'], optio
     console.error('Error converting PDF to multiple formats:', error)
     throw new Error('Failed to convert PDF to images. Please check your file and try again.')
   }
-} 
+}
+
+// Convert Word document to PDF
+export const convertWordToPDF = async (file, options = {}) => {
+  try {
+    const {
+      pageSize = 'a4',
+      orientation = 'portrait',
+      margin = 20,
+      preserveFormatting = true
+    } = options
+
+    // Read the Word document
+    const arrayBuffer = await file.arrayBuffer()
+    
+    // Extract HTML from Word document using mammoth
+    const result = await mammoth.convertToHtml({ arrayBuffer })
+    const htmlContent = result.value
+    
+    if (result.messages.length > 0) {
+      console.warn('Word conversion warnings:', result.messages)
+    }
+    
+    // Create PDF from HTML content
+    const pdf = new jsPDF({
+      orientation: orientation,
+      unit: 'mm',
+      format: pageSize
+    })
+    
+    // Create a temporary div to render HTML
+    const tempDiv = document.createElement('div')
+    tempDiv.innerHTML = htmlContent
+    tempDiv.style.width = '800px'
+    tempDiv.style.padding = `${margin}px`
+    tempDiv.style.fontFamily = 'Arial, sans-serif'
+    tempDiv.style.backgroundColor = 'white'
+    tempDiv.style.color = 'black'
+    tempDiv.style.lineHeight = '1.5'
+    
+    // Apply basic styling for better formatting
+    const paragraphs = tempDiv.querySelectorAll('p')
+    paragraphs.forEach(p => {
+      p.style.marginBottom = '10px'
+    })
+    
+    const headings = tempDiv.querySelectorAll('h1, h2, h3, h4, h5, h6')
+    headings.forEach(h => {
+      h.style.fontWeight = 'bold'
+      h.style.marginTop = '15px'
+      h.style.marginBottom = '10px'
+    })
+    
+    // Append to body temporarily for rendering
+    document.body.appendChild(tempDiv)
+    
+    try {
+      // Convert to canvas using html2canvas
+      const canvas = await html2canvas(tempDiv, {
+        scale: 2,
+        useCORS: true,
+        allowTaint: true,
+        backgroundColor: '#ffffff'
+      })
+      
+      // Remove temp div
+      document.body.removeChild(tempDiv)
+      
+      // Add image to PDF
+      const imgData = canvas.toDataURL('image/png')
+      const imgWidth = pdf.internal.pageSize.getWidth()
+      const pageHeight = pdf.internal.pageSize.getHeight()
+      const imgHeight = (canvas.height * imgWidth) / canvas.width
+      let heightLeft = imgHeight
+      
+      let position = 0
+      
+      pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight)
+      heightLeft -= pageHeight
+      
+      while (heightLeft >= 0) {
+        position = heightLeft - imgHeight
+        pdf.addPage()
+        pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight)
+        heightLeft -= pageHeight
+      }
+      
+      // Save the PDF
+      const originalName = file.name.replace(/\.(docx?|doc)$/i, '')
+      pdf.save(`${originalName}.pdf`)
+      
+      return {
+        success: true,
+        filename: `${originalName}.pdf`,
+        warnings: result.messages
+      }
+    } catch (renderError) {
+      document.body.removeChild(tempDiv)
+      throw renderError
+    }
+    
+  } catch (error) {
+    console.error('Error converting Word to PDF:', error)
+    throw new Error('Failed to convert Word document to PDF. Please check your file and try again.')
+  }
+}
+
+// Convert Excel to PDF
+export const convertExcelToPDF = async (file, options = {}) => {
+  try {
+    const {
+      pageSize = 'a4',
+      orientation = 'landscape', // Default to landscape for spreadsheets
+      worksheetSelection = 'all',
+      fitToPage = true
+    } = options
+    
+    // Read the Excel file
+    const arrayBuffer = await file.arrayBuffer()
+    const workbook = XLSX.read(arrayBuffer, { type: 'array' })
+    
+    const pdf = new jsPDF({
+      orientation: orientation,
+      unit: 'mm',
+      format: pageSize
+    })
+    
+    const pageWidth = pdf.internal.pageSize.getWidth()
+    const pageHeight = pdf.internal.pageSize.getHeight()
+    const margin = 10
+    
+    let isFirstSheet = true
+    
+    // Process worksheets based on selection
+    const sheetsToProcess = worksheetSelection === 'all' 
+      ? workbook.SheetNames 
+      : [workbook.SheetNames[0]] // For now, just process first sheet for 'active'
+    
+    for (const sheetName of sheetsToProcess) {
+      if (!isFirstSheet) {
+        pdf.addPage()
+      }
+      
+      const worksheet = workbook.Sheets[sheetName]
+      
+      // Convert to JSON to get the data
+      const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: '' })
+      
+      if (jsonData.length === 0) continue
+      
+      // Add sheet title
+      pdf.setFontSize(16)
+      pdf.setFont(undefined, 'bold')
+      pdf.text(sheetName, margin, margin + 10)
+      
+      // Calculate column widths
+      const maxCols = Math.max(...jsonData.map(row => row.length))
+      const availableWidth = pageWidth - (2 * margin)
+      const colWidth = availableWidth / maxCols
+      
+      // Set up table styling
+      pdf.setFontSize(8)
+      pdf.setFont(undefined, 'normal')
+      
+      let yPosition = margin + 20
+      const rowHeight = 6
+      
+      // Draw table
+      for (let rowIndex = 0; rowIndex < jsonData.length; rowIndex++) {
+        const row = jsonData[rowIndex]
+        
+        // Check if we need a new page
+        if (yPosition + rowHeight > pageHeight - margin) {
+          pdf.addPage()
+          yPosition = margin
+          
+          // Repeat sheet title on new page
+          pdf.setFontSize(16)
+          pdf.setFont(undefined, 'bold')
+          pdf.text(`${sheetName} (continued)`, margin, yPosition + 10)
+          pdf.setFontSize(8)
+          pdf.setFont(undefined, 'normal')
+          yPosition += 20
+        }
+        
+        // Draw row
+        for (let colIndex = 0; colIndex < maxCols; colIndex++) {
+          const cellValue = row[colIndex] || ''
+          const xPosition = margin + (colIndex * colWidth)
+          
+          // Draw cell border
+          pdf.rect(xPosition, yPosition, colWidth, rowHeight)
+          
+          // Add cell content
+          if (cellValue) {
+            const text = String(cellValue)
+            const maxWidth = colWidth - 2
+            
+            // Truncate text if too long
+            const truncatedText = pdf.splitTextToSize(text, maxWidth)[0] || text
+            
+            pdf.text(truncatedText, xPosition + 1, yPosition + 4)
+          }
+        }
+        
+        yPosition += rowHeight
+      }
+      
+      isFirstSheet = false
+    }
+    
+    // Save the PDF
+    const originalName = file.name.replace(/\.(xlsx?|xls)$/i, '')
+    pdf.save(`${originalName}.pdf`)
+    
+    return {
+      success: true,
+      filename: `${originalName}.pdf`,
+      sheetsProcessed: sheetsToProcess.length
+    }
+    
+  } catch (error) {
+    console.error('Error converting Excel to PDF:', error)
+    throw new Error('Failed to convert Excel file to PDF. Please check your file and try again.')
+  }
+}
+
+// Convert PowerPoint to PDF (basic implementation)
+export const convertPowerPointToPDF = async (file, options = {}) => {
+  try {
+    const {
+      pageSize = 'a4',
+      orientation = 'landscape' // Default to landscape for presentations
+    } = options
+    
+    // For PowerPoint, we'll create a basic PDF with file information
+    // Full PowerPoint parsing requires complex libraries not available client-side
+    
+    const pdf = new jsPDF({
+      orientation: orientation,
+      unit: 'mm',
+      format: pageSize
+    })
+    
+    const pageWidth = pdf.internal.pageSize.getWidth()
+    const pageHeight = pdf.internal.pageSize.getHeight()
+    const margin = 20
+    
+    // Add title
+    pdf.setFontSize(20)
+    pdf.setFont(undefined, 'bold')
+    pdf.text('PowerPoint Document', margin, margin + 10)
+    
+    // Add file information
+    pdf.setFontSize(12)
+    pdf.setFont(undefined, 'normal')
+    pdf.text(`File: ${file.name}`, margin, margin + 25)
+    pdf.text(`Size: ${(file.size / 1024 / 1024).toFixed(2)} MB`, margin, margin + 35)
+    pdf.text(`Type: ${file.type || 'PowerPoint Presentation'}`, margin, margin + 45)
+    
+    // Add notice
+    pdf.setFontSize(10)
+    pdf.setFont(undefined, 'italic')
+    const notice = [
+      'Note: Full PowerPoint to PDF conversion requires server-side processing',
+      'for complete slide extraction and formatting preservation.',
+      '',
+      'This basic implementation creates a placeholder PDF with file information.',
+      'For complete conversion, please use a server-based solution.'
+    ]
+    
+    let yPos = margin + 65
+    notice.forEach(line => {
+      pdf.text(line, margin, yPos)
+      yPos += 8
+    })
+    
+    // Save the PDF
+    const originalName = file.name.replace(/\.(pptx?|ppt)$/i, '')
+    pdf.save(`${originalName}.pdf`)
+    
+    return {
+      success: true,
+      filename: `${originalName}.pdf`,
+      note: 'Basic conversion completed. Full presentation conversion requires server-side processing.'
+    }
+    
+  } catch (error) {
+    console.error('Error converting PowerPoint to PDF:', error)
+    throw new Error('Failed to convert PowerPoint file to PDF. Please check your file and try again.')
+  }
+}
