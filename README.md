@@ -9,7 +9,7 @@
 
 ## 🌟 Live Demo
 
-**[🚀 Try it now](https://all-purpose-pdf-editor.vercel.app)**
+**[🚀 Try it now](https://ultimate-pdf-toolkit.vercel.app)**
 
 ## 🎯 Project Vision
 
