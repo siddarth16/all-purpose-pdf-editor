@@ -11,7 +11,7 @@ const Footer = () => {
           </p>
           <div className="mt-4 flex justify-center space-x-6">
             <a
-              href="https://github.com/siddarth16"
+              href="https://github.com/siddarth16/all-purpose-pdf-editor"
               target="_blank"
               rel="noopener noreferrer"
               className="text-muted hover:text-primary transition-colors duration-200"
